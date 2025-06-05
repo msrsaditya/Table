@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Full-Page Table</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #1e293b;
+      --text-secondary: #64748b;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #10b981;
+      --success-hover: #059669;
+      --border: #e2e8f0;
+      --border-light: #f1f5f9;
+      --radius: 6px;
+      --spacing: 12px;
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      --transition: all 0.2s ease;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+    }
+
+    html, body { 
+      height: 100%; 
+      width: 100%; 
+      margin: 0; 
+      padding: 0;
+      overflow: hidden; 
+      font-family: var(--font);
+      background: var(--bg); 
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .container { 
+      display: flex; 
+      flex-direction: column;
+      height: 100vh; 
+      width: 100vw; 
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .header-top { 
+      padding: calc(var(--spacing) * 1.5);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex: 0 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .title { 
+      font-size: 1.75rem; 
+      font-weight: 600; 
+      color: var(--text);
+      transition: var(--transition);
+      padding: 4px 6px;
+      border-radius: var(--radius);
+    }
+
+    .title[contenteditable="true"] { 
+      border-bottom: 2px solid var(--primary); 
+      cursor: text; 
+      background-color: rgba(59, 130, 246, 0.05);
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .table-wrapper { 
+      flex: 1; 
+      overflow: auto; 
+      position: relative;
+      padding: 0 var(--spacing);
+      scrollbar-width: thin;
+      scrollbar-color: var(--text-secondary) transparent;
+    }
+
+    .table-wrapper::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .table-wrapper::-webkit-scrollbar-thumb {
+      background-color: var(--text-secondary);
+      border-radius: 20px;
+    }
+
+    #editableTable { 
+      width: 100%; 
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: fixed; 
+      border: 1px solid var(--border); 
+      font-size: 1rem;
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: var(--spacing);
+      box-shadow: var(--shadow);
+    }
+
+    thead th { 
+      padding: calc(var(--spacing) * 1.2);
+      text-align: left;
+      border-bottom: 2px solid var(--border);
+      background-color: var(--bg);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    #editableTable td { 
+      padding: var(--spacing);
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border-light);
+      transition: var(--transition);
+    }
+
+    #editableTable td:last-child {
+      border-right: none;
+    }
+
+    #controlRow th {
+      padding: calc(var(--spacing) * 0.75);
+      background-color: #f8fafc;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .container:not(.edit-mode) #controlRow { 
+      display: none; 
+    }
+
+    #editableTable tbody tr:nth-child(even) { 
+      background: #f9fafb; 
+    }
+
+    tbody tr { 
+      transition: var(--transition);
+    }
+
+    tbody tr:hover { 
+      background: #f1f5f9; 
+    }
+
+    .cell-text { 
+      display: block; 
+      width: 100%; 
+      font-size: 1rem;
+      white-space: normal; 
+      word-break: break-word;
+      padding: 4px; 
+      border: none; 
+      margin: 0;
+      color: var(--text);
+      border-radius: 3px;
+      min-height: 30px;
+    }
+
+    input[type="text"] { 
+      width: 100%; 
+      padding: 8px 10px;
+      border: 1px solid var(--border); 
+      border-radius: var(--radius);
+      font-size: 1rem;
+      transition: var(--transition);
+      font-family: var(--font);
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    input[type="checkbox"] { 
+      width: 20px; 
+      height: 20px; 
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    input[type="checkbox"][data-view] { 
+      pointer-events: none; 
+      opacity: 1; 
+    }
+
+    .btn { 
+      background: var(--primary); 
+      color: white;
+      border: none; 
+      border-radius: var(--radius);
+      padding: 8px 14px; 
+      font-size: 0.9rem; 
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-danger { 
+      background: var(--danger); 
+    }
+
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
+
+    #addRowBtn {
+      background-color: var(--success);
+      margin-top: var(--spacing);
+    }
+
+    #addRowBtn:hover {
+      background-color: var(--success-hover);
+    }
+
+    .type-select { 
+      padding: 6px 10px; 
+      border-radius: var(--radius);
+      border: 1px solid var(--border); 
+      font-size: 0.9rem;
+      margin-right: 8px;
+      background-color: white;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .type-select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .container:not(.edit-mode) .header-buttons .btn-edit-controls { 
+      display: none; 
+    }
+
+    tfoot td { 
+      border: none; 
+      padding: var(--spacing); 
+    }
+
+    /* Action buttons layout */
+    th .btn-danger {
+      padding: 4px 8px;
+      margin-left: 8px;
+      font-size: 0.8rem;
+    }
+
+    /* Edit mode indicator */
+    .container.edit-mode::after {
+      content: "Edit Mode";
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background-color: rgba(30, 41, 59, 0.8);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* Empty table state */
+    tbody:empty::after {
+      content: "No data available";
+      display: block;
+      padding: calc(var(--spacing) * 3);
+      text-align: center;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    /* Controls footer */
+    .controls-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacing);
+      border-top: 1px solid var(--border);
+      background-color: var(--bg);
+      gap: var(--spacing);
+    }
+    
+    .container:not(.edit-mode) .controls-footer {
+      display: none;
+    }
+    
+    /* Storage status indicator */
+    .storage-status {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: white;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .storage-status.success {
+      background-color: var(--success);
+    }
+    
+    .storage-status.error {
+      background-color: var(--danger);
+    }
+    
+    /* Clear data button */
+    #clearStorageBtn {
+      background-color: var(--danger);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      opacity: 0.8;
+      transition: var(--transition);
+    }
+    
+    #clearStorageBtn:hover {
+      opacity: 1;
+      background-color: var(--danger-hover);
+    }
+    
+    /* Last saved indicator */
+    .save-indicator {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      text-align: center;
+      flex: 1;
+    }
+
+    /* Import file input */
+    #fileInput {
+      display: none;
+    }
+
+    /* Shortcut hints */
+    .shortcut-hint {
+      background: var(--bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      font-family: monospace;
+      margin-left: 4px;
+      border: 1px solid var(--border);
+    }
+
+    /* Modal styling */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background-color: var(--surface);
+      padding: 24px;
+      border-radius: var(--radius);
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-header {
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .modal-body {
+      margin-bottom: 24px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn-secondary {
+      background-color: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--border);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .title {
+        font-size: 1.4rem;
+      }
+
+      thead th, #editableTable td {
+        padding: calc(var(--spacing) * 0.75);
+      }
+
+      .btn {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+      }
+      
+      .controls-footer {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .save-indicator {
+        order: -1;
+      }
+      
+      .header-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      
+      .header-buttons {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="container">
+    <div class="header-top">
+      <div class="title" id="tableTitle" contenteditable="false">My Table</div>
+      <div class="header-buttons">
+        <button id="importBtn" class="btn">Import <span class="shortcut-hint">⌘O</span></button>
+        <button id="exportBtn" class="btn">Export <span class="shortcut-hint">⌘S</span></button>
+        <button id="toggleEditBtn" class="btn btn-edit-controls">Toggle Edit Mode <span class="shortcut-hint">⌘E</span></button>
+      </div>
+    </div>
+    <div class="table-wrapper">
+      <table id="editableTable">
+        <thead>
+          <tr id="headerRow"></tr>
+          <tr id="controlRow"></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot>
+          <tr>
+            <td id="addRowCell" colspan="6">
+              <button id="addRowBtn" class="btn">＋ Row</button>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="controls-footer">
+      <button id="clearStorageBtn" class="btn btn-danger">Clear Saved Data</button>
+      <div id="lastSavedIndicator" class="save-indicator">Not saved yet</div>
+      <div id="storageStatus" class="storage-status"></div>
+    </div>
+  </div>
+
+  <!-- File input for import (hidden) -->
+  <input type="file" id="fileInput" accept=".json">
+  
+  <!-- Export Confirmation Modal -->
+  <div id="exportModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Export Table</h2>
+      </div>
+      <div class="modal-body">
+        <p>Do you want to export this table as a JSON file?</p>
+        <p>The file will contain all your table data and can be imported later.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelExportBtn" class="btn btn-secondary">Cancel</button>
+        <button id="confirmExportBtn" class="btn">Export</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Import Confirmation Modal -->
+  <div id="importModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Import Table</h2>
+      </div>
+      <div class="modal-body">
+        <p>This will replace your current table with the imported data.</p>
+        <p>Are you sure you want to continue?</p>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelImportBtn" class="btn btn-secondary">Cancel</button>
+        <button id="confirmImportBtn" class="btn">Import</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    const container = document.getElementById('container');
+    const headerRow = document.getElementById('headerRow');
+    const controlRow = document.getElementById('controlRow');
+    const tbody = document.getElementById('tbody');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const titleElem = document.getElementById('tableTitle');
+    const clearStorageBtn = document.getElementById('clearStorageBtn');
+    const toggleEditBtn = document.getElementById('toggleEditBtn');
+    const importBtn = document.getElementById('importBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const fileInput = document.getElementById('fileInput');
+    const exportModal = document.getElementById('exportModal');
+    const importModal = document.getElementById('importModal');
+    const confirmExportBtn = document.getElementById('confirmExportBtn');
+    const cancelExportBtn = document.getElementById('cancelExportBtn');
+    const confirmImportBtn = document.getElementById('confirmImportBtn');
+    const cancelImportBtn = document.getElementById('cancelImportBtn');
+    
+    // Local storage key
+    const STORAGE_KEY = 'interactive-table-data';
+
+    // Default values
+    const DEFAULT_TITLE = 'My Table';
+    const DEFAULT_COLS = 5;
+    const DEFAULT_ROWS = 5;
+
+    let editMode = false;
+    let colNames = [];
+    let colTypes = [];
+    let dataRows = [];
+    let importedData = null;
+
+    function preventEnterBlur(elem) {
+      elem.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault(); elem.blur();
+        }
+      });
+    }
+
+    // Save data to local storage
+    function saveToLocalStorage() {
+      const tableData = {
+        title: titleElem.innerText,
+        colNames: colNames,
+        colTypes: colTypes,
+        dataRows: dataRows,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tableData));
+        showStatusNotification('Table saved!');
+      } catch (e) {
+        console.error('Error saving to local storage:', e);
+        showStatusNotification('Error saving data!', true);
+      }
+    }
+    
+    // Reset to default data
+    function resetToDefaults() {
+      titleElem.innerText = DEFAULT_TITLE;
+      colNames = [];
+      colTypes = [];
+      dataRows = [];
+      
+      for (let i = 0; i < DEFAULT_COLS; i++) {
+        colNames.push('Col ' + (i + 1)); 
+        colTypes.push('text');
+      }
+      
+      for (let r = 0; r < DEFAULT_ROWS; r++) {
+        dataRows.push(colTypes.map(t => (t === 'text' ? '' : false)));
+      }
+    }
+    
+    // Clear all data from local storage
+    function clearLocalStorage() {
+      if (confirm('Are you sure you want to clear all saved data? This cannot be undone.')) {
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+          showStatusNotification('All data cleared!');
+          
+          // Reset to default data including title
+          resetToDefaults();
+          
+          renderTable();
+          debouncedSave();
+        } catch (e) {
+          console.error('Error clearing data:', e);
+          showStatusNotification('Error clearing data!', true);
+        }
+      }
+    }
+
+    // Show temporary status notification
+    function showStatusNotification(message, isError = false) {
+      const statusElem = document.getElementById('storageStatus');
+      
+      // Set message and style
+      statusElem.textContent = message;
+      statusElem.className = 'storage-status ' + (isError ? 'error' : 'success');
+      statusElem.style.opacity = '1';
+      
+      // Clear any existing timeout
+      if (window.statusNotificationTimeout) {
+        clearTimeout(window.statusNotificationTimeout);
+      }
+      
+      // Hide after 2 seconds
+      window.statusNotificationTimeout = setTimeout(() => {
+        statusElem.style.opacity = '0';
+      }, 2000);
+      
+      // Update last saved indicator
+      updateLastSavedTime();
+    }
+    
+    // Update the last saved time indicator
+    function updateLastSavedTime() {
+      const lastSavedElem = document.getElementById('lastSavedIndicator');
+      try {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          if (parsedData && parsedData.lastUpdated) {
+            const lastSaved = new Date(parsedData.lastUpdated);
+            const now = new Date();
+            const diffMs = now - lastSaved;
+            
+            // Format time difference
+            let timeText;
+            if (diffMs < 1000) {
+              timeText = 'just now';
+            } else if (diffMs < 60000) {
+              timeText = Math.floor(diffMs / 1000) + ' seconds ago';
+            } else if (diffMs < 3600000) {
+              timeText = Math.floor(diffMs / 60000) + ' minutes ago';
+            } else if (diffMs < 86400000) {
+              timeText = Math.floor(diffMs / 3600000) + ' hours ago';
+            } else {
+              timeText = Math.floor(diffMs / 86400000) + ' days ago';
+            }
+            
+            lastSavedElem.textContent = 'Last saved: ' + timeText;
+          }
+        } else {
+          lastSavedElem.textContent = 'Not saved yet';
+        }
+      } catch (e) {
+        lastSavedElem.textContent = 'Error retrieving save time';
+      }
+    }
+
+    // Load data from local storage
+    function loadFromLocalStorage() {
+      try {
+        const storedData = localStorage.getItem(STORAGE_KEY);
+        if (storedData) {
+          const parsedData = JSON.parse(storedData);
+          
+          // Validate the data
+          if (parsedData && 
+              Array.isArray(parsedData.colNames) && 
+              Array.isArray(parsedData.colTypes) && 
+              Array.isArray(parsedData.dataRows)) {
+                
+            titleElem.innerText = parsedData.title || DEFAULT_TITLE;
+            colNames = parsedData.colNames;
+            colTypes = parsedData.colTypes;
+            dataRows = parsedData.dataRows;
+            
+            return true;
+          }
+        }
+      } catch (e) {
+        console.error('Error loading from local storage:', e);
+      }
+      
+      return false;
+    }
+
+    // Initialize with default data or load from storage
+    function init() {
+      const dataLoaded = loadFromLocalStorage();
+      
+      if (!dataLoaded) {
+        resetToDefaults();
+      }
+      
+      renderTable();
+      updateLastSavedTime();
+      
+      // Set up clear storage button
+      clearStorageBtn.addEventListener('click', clearLocalStorage);
+      
+      // Set up toggle edit mode button
+      toggleEditBtn.addEventListener('click', toggleEditMode);
+      
+      // Set up import/export buttons
+      importBtn.addEventListener('click', showImportModal);
+      exportBtn.addEventListener('click', showExportModal);
+      
+      // Set up modal buttons
+      confirmExportBtn.addEventListener('click', exportTable);
+      cancelExportBtn.addEventListener('click', () => exportModal.style.display = 'none');
+      confirmImportBtn.addEventListener('click', continueImport);
+      cancelImportBtn.addEventListener('click', () => importModal.style.display = 'none');
+      
+      // Set up file input listener
+      fileInput.addEventListener('change', handleFileSelect);
+    }
+
+    // Debounce function to limit save operations
+    function debounce(func, wait) {
+      let timeout;
+      return function() {
+        const context = this, args = arguments;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          func.apply(context, args);
+        }, wait);
+      };
+    }
+
+    // Debounced save function - saves after 500ms of inactivity
+    const debouncedSave = debounce(saveToLocalStorage, 500);
+
+    // Calculate the optimal row height to fit viewport
+    function calculateRowHeight() {
+      if (!editMode && dataRows.length > 0) {
+        const headerH = container.querySelector('.header-top').offsetHeight;
+        const footerH = container.querySelector('tfoot').offsetHeight;
+        const controlsFooterH = editMode ? container.querySelector('.controls-footer').offsetHeight : 0;
+        const tableHeadH = container.querySelector('thead').offsetHeight;
+        
+        const avail = container.clientHeight - headerH - footerH - controlsFooterH - tableHeadH - 40; // Extra padding
+        return Math.floor(avail / dataRows.length);
+      }
+      return '';
+    }
+
+    function renderTable() {
+      headerRow.innerHTML = '';
+      controlRow.innerHTML = '';
+
+      // Column headers
+      colNames.forEach((name, i) => {
+        const th = document.createElement('th');
+        const div = document.createElement('div');
+        div.innerText = name; div.contentEditable = editMode;
+        if (editMode) { div.style.cursor = 'text'; preventEnterBlur(div); }
+        div.addEventListener('blur', () => { 
+          colNames[i] = div.innerText.trim() || name; 
+          renderTable();
+          debouncedSave();
+        });
+        th.appendChild(div); headerRow.appendChild(th);
+      });
+      
+      // Placeholder header for add-column only in edit mode
+      if (editMode) {
+        const thEmpty = document.createElement('th'); headerRow.appendChild(thEmpty);
+      }
+
+      // Controls row (only in edit mode)
+      if (editMode) {
+        colNames.forEach((_, i) => {
+          const th = document.createElement('th');
+          const sel = document.createElement('select'); sel.className = 'type-select';
+          ['text','checkbox'].forEach(opt => {
+            const o = document.createElement('option'); o.value = opt; o.innerText = opt;
+            if (colTypes[i] === opt) o.selected = true; sel.appendChild(o);
+          });
+          sel.addEventListener('change', () => {
+            colTypes[i] = sel.value;
+            dataRows.forEach(r => r[i] = colTypes[i] === 'checkbox' ? false : ''); 
+            renderTable();
+            debouncedSave();
+          }); 
+          th.appendChild(sel);
+          
+          const del = document.createElement('button'); del.className = 'btn btn-danger'; del.innerText = '✕';
+          del.addEventListener('click', () => { 
+            colNames.splice(i,1); 
+            colTypes.splice(i,1);
+            dataRows.forEach(r => r.splice(i,1)); 
+            renderTable();
+            debouncedSave();
+          }); 
+          th.appendChild(del);
+          controlRow.appendChild(th);
+        });
+        
+        // Add-column button
+        const thAdd = document.createElement('th');
+        const addColBtn = document.createElement('button'); addColBtn.className = 'btn';
+        addColBtn.innerText = '+ Column'; 
+        addColBtn.addEventListener('click', () => {
+          const next = colNames.length + 1;
+          colNames.push('Col ' + next);
+          colTypes.push('text'); 
+          dataRows.forEach(r => r.push(''));
+          renderTable();
+          debouncedSave();
+        }); 
+        thAdd.appendChild(addColBtn); 
+        controlRow.appendChild(thAdd);
+      }
+
+      // Adjust add-row colspan based on edit mode
+      const extraCol = editMode ? 1 : 0;
+      document.getElementById('addRowCell').colSpan = colNames.length + extraCol;
+
+      // Body rows
+      tbody.innerHTML = '';
+      dataRows.forEach((row, r) => {
+        const tr = document.createElement('tr');
+        row.forEach((val, c) => {
+          const td = document.createElement('td');
+          if (editMode) {
+            const inp = document.createElement('input');
+            if (colTypes[c] === 'checkbox') { 
+              inp.type = 'checkbox'; 
+              inp.checked = val;
+              inp.addEventListener('change', () => {
+                dataRows[r][c] = inp.checked;
+                debouncedSave();
+              });
+            } else { 
+              inp.type = 'text'; 
+              inp.value = val;
+              inp.addEventListener('input', () => {
+                dataRows[r][c] = inp.value;
+                debouncedSave();
+              });
+            }
+            td.appendChild(inp);
+          } else {
+            if (colTypes[c] === 'checkbox') {
+              const cb = document.createElement('input'); 
+              cb.type = 'checkbox'; 
+              cb.checked = val;
+              cb.setAttribute('data-view', ''); 
+              td.appendChild(cb);
+            } else {
+              const span = document.createElement('div'); 
+              span.className = 'cell-text'; 
+              span.innerText = val;
+              td.appendChild(span);
+            }
+          }
+          tr.appendChild(td);
+        });
+        
+        // Delete row button only in edit mode
+        if (editMode) {
+          const tdDel = document.createElement('td');
+          const rowDel = document.createElement('button'); 
+          rowDel.className = 'btn btn-danger'; 
+          rowDel.innerText = '−';
+          rowDel.addEventListener('click', () => { 
+            dataRows.splice(r, 1); 
+            renderTable();
+            debouncedSave();
+          });
+          tdDel.appendChild(rowDel); 
+          tr.appendChild(tdDel);
+        }
+        tbody.appendChild(tr);
+      });
+
+      // Calculate optimal row height
+      const rowHeight = calculateRowHeight();
+      if (rowHeight) {
+        tbody.querySelectorAll('tr').forEach(tr => {
+          tr.style.height = rowHeight + 'px';
+        });
+      } else {
+        tbody.querySelectorAll('tr').forEach(tr => { tr.style.height = ''; });
+      }
+
+      // Set up title editing
+      titleElem.contentEditable = editMode; 
+      if (editMode) {
+        preventEnterBlur(titleElem);
+        // Save title when edited
+        titleElem.addEventListener('blur', debouncedSave);
+      }
+    }
+
+    document.addEventListener('keydown', e => {
+      if ((e.key.toLowerCase() === 'e') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault(); 
+        editMode = !editMode;
+        container.classList.toggle('edit-mode', editMode); 
+        renderTable();
+      }
+      
+      // Add Ctrl+S / Cmd+S to manually save
+      if ((e.key.toLowerCase() === 's') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        saveToLocalStorage();
+      }
+    });
+
+    addRowBtn.addEventListener('click', () => { 
+      dataRows.push(colTypes.map(t => t === 'text' ? '' : false)); 
+      renderTable();
+      debouncedSave();
+    });
+    
+    // Initialize the table
+    init();
+  </script>
+</body>
+</html>
